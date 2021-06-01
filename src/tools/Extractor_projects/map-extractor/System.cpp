@@ -51,6 +51,8 @@
 #endif
 extern ArchiveSet gOpenArchives;    /**< TODO */
 
+using namespace std;
+
 /**
  * @brief
  *
@@ -67,8 +69,8 @@ uint16* LiqType;                    /**< TODO */
 //char output_path[128] = ".";        /**< TODO */
 //char input_path[128] = ".";         /**< TODO */
 
-std::string *input_path = new std::string(".");
-std::string *output_path = new std::string(".");
+string *input_path = new string(".");
+string *output_path = new string(".");
 
 uint32 maxAreaId = 0;               /**< TODO */
 int iCoreNumber = 0;
@@ -76,13 +78,9 @@ int iCoreNumber = 0;
  * @brief Data types which can be extracted
  *
  */
-enum Extract
-{
-    EXTRACT_MAP = 1,
-    EXTRACT_DBC = 2
-};
+bool  EXTRACT_MAP = true;
+bool  EXTRACT_DBC = true;
 
-int   CONF_extract = EXTRACT_MAP | EXTRACT_DBC; /**< Select data for extract */
 bool  CONF_allow_height_limit       = true;     /**< Allows to limit minimum height */
 float CONF_use_minHeight            = -500.0f;  /**< Default minimum height */
 
@@ -100,7 +98,7 @@ int MAP_LIQUID_TYPE_WATER    = 0x08;
 
 static const int LANG_COUNT = 12;
 
-std::vector<std::string> kClassicMPQList 
+vector<string> kClassicMPQList
 {
     "base.MPQ",
     "dbc.MPQ",
@@ -115,7 +113,7 @@ std::vector<std::string> kClassicMPQList
     "wmo.MPQ",
 };
 
-std::vector<std::string> kTBCMPQList
+vector<string> kTBCMPQList
 {
     "common.MPQ",
     "expansion.MPQ",
@@ -129,7 +127,7 @@ std::vector<std::string> kTBCMPQList
     "%s/speech-%s.MPQ"
 };
 
-std::vector<std::string> kWOTLKMPQList 
+vector<string> kWOTLKMPQList
 {
     "common.MPQ",
     "common-2.MPQ",
@@ -149,7 +147,7 @@ std::vector<std::string> kWOTLKMPQList
     "%s/speech-%s.MPQ"
 };
 
-std::vector<std::string> kCATAMPQList
+vector<string> kCATAMPQList
 {
     "alternate.MPQ",
     "art.MPQ",
@@ -167,6 +165,21 @@ std::vector<std::string> kCATAMPQList
     "%s/locale-%s.MPQ",
     "%s/speech-%s.MPQ"
 };
+vector<string> kMOPMPQList
+{
+    "alternate.MPQ",
+    "expansion1.MPQ",
+    "expansion2.MPQ",
+    "expansion3.MPQ",
+    "expansion4.MPQ",
+    "world.MPQ",
+    "%s/expansion1-speech-%s.MPQ",
+    "%s/expansion2-speech-%s.MPQ",
+    "%s/expansion3-speech-%s.MPQ",
+    "%s/expansion4-speech-%s.MPQ",
+    "%s/locale-%s.MPQ",
+    "%s/speech-%s.MPQ"
+    };
 
 /**
  * @brief
@@ -175,19 +188,19 @@ std::vector<std::string> kCATAMPQList
  */
 void Usage(char* program)
 {
-    std::cout << " Usage: " << program << std::endl;
-    std::cout << " Extract client database files and generate map files." << std::endl;
-    std::cout << "   -h, --help            show the usage" << std::endl;
-    std::cout << "   -i, --input <path>    search path for game client archives" << std::endl;
-    std::cout << "   -o, --output <path>   target path for generated files" << std::endl;
-    std::cout << "   -f, --flat #          store height information as integers reducing map" << std::endl;
-    std::cout << "                         size, but also accuracy" << std::endl;
-    std::cout << "   -e, --extract #       extract specified client data. 1 = maps, 2 = DBCs," << std::endl;
-    std::cout << "                         3 = both. Defaults to extracting both." << std::endl;
-    std::cout << std::endl;
-    std::cout << " Example:" << std::endl;
-    std::cout << " - use input path and do not flatten maps:" << std::endl;
-    std::cout << "   " << program << " -f 0 -i c:\\games\\world of warcraft\" -o  c:\\games\\world of warcraft\\extract" << std::endl;
+    cout << " Usage: " << program << endl;
+    cout << " Extract client database files and generate map files." << endl;
+    cout << "   -h, --help            show the usage" << endl;
+    cout << "   -i, --input <path>    search path for game client archives" << endl;
+    cout << "   -o, --output <path>   target path for generated files" << endl;
+    cout << "   -f, --flat #          store height information as integers reducing map" << endl;
+    cout << "                         size, but also accuracy" << endl;
+    cout << "   -e, --extract #       extract specified client data. 1 = maps, 2 = DBCs," << endl;
+    cout << "                         3 = both. Defaults to extracting both." << endl;
+    cout << endl;
+    cout << " Example:" << endl;
+    cout << " - use input path and do not flatten maps:" << endl;
+    cout << "   " << program << " -f 0 -i c:\\games\\world of warcraft\" -o  c:\\games\\world of warcraft\\extract" << endl;
 }
 
 /**
@@ -204,21 +217,21 @@ bool HandleArgs(int argc, char **argv)
     {
         for (int i = 1; i < argc; ++i)
         {
-            std::string *arg = new std::string(argv[i]);
+            string *arg = new string(argv[i]);
             if (arg->compare("-i") == 0 || arg->compare("--input") == 0)
             {
                 i++;
-                input_path = new std::string(argv[i]);
+                input_path = new string(argv[i]);
             }
             else if (arg->compare("-o") == 0 || arg->compare("--output") == 0)
             {
                 i++;
-                output_path = new std::string(argv[i]);
+                output_path = new string(argv[i]);
             }
             else if (arg->compare("-f") == 0 || arg->compare("--flat") == 0)
             {
                 i++;
-                if (std::atoi(argv[i]) != 0)
+                if (atoi(argv[i]) != 0)
                 {
                     CONF_allow_float_to_int = true;
                 }
@@ -226,10 +239,15 @@ bool HandleArgs(int argc, char **argv)
             else if (arg->compare("-e") == 0 || arg->compare("--extract") == 0)
             {
                 i++;
-                CONF_extract = std::atoi(argv[i]);
-                if (CONF_extract < 1 || CONF_extract > 3)
+                int extract = atoi(argv[i]);
+                if (extract < 1 || extract > 3)
                 {
-                    throw std::invalid_argument("extract parameter must be between 1-3");
+                    throw invalid_argument("extract parameter must be between 1-3");
+                }
+                if (extract==1) {
+                    EXTRACT_DBC = false;
+                } else if (extract == 2) {
+                    EXTRACT_MAP = false;
                 }
             }
             else if (arg->compare("-h") == 0 || arg->compare("--help") == 0)
@@ -245,11 +263,11 @@ bool HandleArgs(int argc, char **argv)
     catch (...)
     {
         Usage(argv[0]);
-        return false;
+        exit(1);
     }
 }
 
-void AppendDBCFileListTo(HANDLE mpqHandle, std::set<std::string>& filelist)
+void AppendDBCFileListTo(HANDLE mpqHandle, set<string>& filelist)
 {
     SFILE_FIND_DATA findFileData;
 
@@ -267,7 +285,7 @@ void AppendDBCFileListTo(HANDLE mpqHandle, std::set<std::string>& filelist)
     SFileFindClose(searchHandle);
 }
 
-void AppendDB2FileListTo(HANDLE mpqHandle, std::set<std::string>& filelist)
+void AppendDB2FileListTo(HANDLE mpqHandle, set<string>& filelist)
 {
     SFILE_FIND_DATA findFileData;
 
@@ -293,19 +311,20 @@ void AppendDB2FileListTo(HANDLE mpqHandle, std::set<std::string>& filelist)
 uint32 ReadMapDBC()
 {
     HANDLE dbcFile;
-    if (!OpenNewestFile("DBFilesClient\\Map.dbc", &dbcFile))
+    static const string filename("DBFilesClient\\Map.dbc");
+    if (!OpenNewestFile(filename.c_str(), &dbcFile))
     {
-        std::cerr << "Error: Cannot find Map.dbc in archive!" << std::endl;
+        std:cerr << "Error: Cannot find Map.dbc in archive!" << endl;
         exit(1);
     }
 
-    std::cout << " Found Map.dbc in archive!" << std::endl;
-    std::cout << std::endl<< " Reading maps from Map.dbc... " << std::endl;
+    cout << " Found Map.dbc in archive!" << endl;
+    cout << endl<< " Reading maps from Map.dbc... " << endl;
 
-    DBCFile dbc(dbcFile);
+    DBCFile dbc(dbcFile, filename);
     if (!dbc.open())
     {
-        std::cerr << "Fatal error: Could not read Map.dbc!" << std::endl;
+        cerr << "Fatal error: Could not read Map.dbc!" << endl;
         exit(1);
     }
 
@@ -315,7 +334,7 @@ uint32 ReadMapDBC()
     {
         map_ids[x].id = dbc.getRecord(x).getUInt(0);
         strcpy(map_ids[x].name, dbc.getRecord(x).getString(1));
-        std::cout << map_ids[x].name << std::endl;
+        cout << map_ids[x].name << endl;
     }
 
     return map_count;
@@ -327,20 +346,21 @@ uint32 ReadMapDBC()
  */
 void ReadAreaTableDBC()
 {
-    std::cout << std::endl << " Read areas from AreaTable.dbc ...";
+    cout << endl << " Read areas from AreaTable.dbc ...";
 
     HANDLE dbcFile;
-    if (!OpenNewestFile("DBFilesClient\\AreaTable.dbc", &dbcFile))
+    static const string filename("DBFilesClient\\AreaTable.dbc");
+    if (!OpenNewestFile(filename.c_str(), &dbcFile))
     {
-        std::cerr << "Error: Cannot find AreaTable.dbc in archive!" << std::endl;
+        cerr << "Error: Cannot find AreaTable.dbc in archive!" << endl;
         exit(1);
     }
 
-    DBCFile dbc(dbcFile);
+    DBCFile dbc(dbcFile,filename);
 
     if (!dbc.open())
     {
-        std::cerr << "Fatal error: Could not read AreaTable.dbc!" << std::endl;
+        cerr << "Fatal error: Could not read AreaTable.dbc!" << endl;
         exit(1);
     }
 
@@ -356,7 +376,7 @@ void ReadAreaTableDBC()
 
     maxAreaId = dbc.getMaxId();
 
-    std::cout << " Success! " << area_count << " areas loaded." << std::endl;
+    cout << " Success! " << area_count << " areas loaded." << endl;
 }
 
 /**
@@ -365,19 +385,20 @@ void ReadAreaTableDBC()
  */
 void ReadLiquidTypeTableDBC()
 {
-    std::cout << std::endl << " Reading liquid types from LiquidType.dbc..." << std::endl;
+    cout << endl << " Reading liquid types from LiquidType.dbc..." << endl;
 
     HANDLE dbcFile;
-    if (!OpenNewestFile("DBFilesClient\\LiquidType.dbc", &dbcFile))
+    static const string filename("DBFilesClient\\LiquidType.dbc");
+    if (!OpenNewestFile(filename.c_str(), &dbcFile))
     {
-        std::cout << "Error: Cannot find LiquidType.dbc in archive!" << std::endl;
+        cout << "Error: Cannot find LiquidType.dbc in archive!" << endl;
         exit(1);
     }
 
-    DBCFile dbc(dbcFile);
+    DBCFile dbc(dbcFile,filename);
     if (!dbc.open())
     {
-        std::cout << "Fatal error: Could not read LiquidType.dbc!" << std:: endl;
+        cout << "Fatal error: Could not read LiquidType.dbc!" <<  endl;
         exit(1);
     }
 
@@ -391,7 +412,7 @@ void ReadLiquidTypeTableDBC()
         LiqType[dbc.getRecord(x).getUInt(0)] = dbc.getRecord(x).getUInt(3);
     }
 
-    std::cout << " Success! " << LiqType_count << " liquid types loaded." << std::endl;
+    cout << " Success! " << LiqType_count << " liquid types loaded." << endl;
 }
 
 //
@@ -534,7 +555,7 @@ bool ConvertADT(char* filename, char* filename2, uint32 build)
     adt_MCIN* cells = adt.a_grid->getMCIN();
     if (!cells)
     {
-        //std::cout << "Can not find cells in '" << filename << "'." << std::endl;
+        //cout << "Can not find cells in '" << filename << "'." << endl;
         return false;
     }
 
@@ -562,8 +583,8 @@ bool ConvertADT(char* filename, char* filename2, uint32 build)
                     area_flags[i][j] = areas[areaid];
                     continue;
                 }
-                std::cout << "File: " << filename << std::endl;
-                std::cout << "Can not find area flag for area " << areaid << " [" << cell->ix << "," << cell->iy << "]" << std::endl;
+                cout << "File: " << filename << endl;
+                cout << "Can not find area flag for area " << areaid << " [" << cell->ix << "," << cell->iy << "]" << endl;
             }
             area_flags[i][j] = 0xffff;
         }
@@ -922,9 +943,9 @@ bool ConvertADT(char* filename, char* filename2, uint32 build)
                     case LIQUID_TYPE_MAGMA: liquid_flags[i][j] |= MAP_LIQUID_TYPE_MAGMA; break;
                     case LIQUID_TYPE_SLIME: liquid_flags[i][j] |= MAP_LIQUID_TYPE_SLIME; break;
                     default:
-                        std::cout << std::endl << "Can not find liquid type " << h->liquidType << \
-                            " for map " << filename << std::endl << \
-                            " chunk " << i << ", " << j << std::endl;
+                        cout << endl << "Can not find liquid type " << h->liquidType << \
+                            " for map " << filename << endl << \
+                            " chunk " << i << ", " << j << endl;
                         break;
                 }
                 // Dark water detect
@@ -939,7 +960,7 @@ bool ConvertADT(char* filename, char* filename2, uint32 build)
 
                 if (!count && liquid_flags[i][j])
                 {
-                    std::cout << "Wrong liquid type detected in MH2O chunk." << std::endl;
+                    cout << "Wrong liquid type detected in MH2O chunk." << endl;
                 }
 
                 float* height = h2o->getLiquidHeightMap(h);
@@ -1109,7 +1130,7 @@ bool ConvertADT(char* filename, char* filename2, uint32 build)
     FILE* output = fopen(filename2, "wb");
     if (!output)
     {
-        std::cout << "Can not create the output file '" << filename2 << "'" << std::endl;
+        cout << "Can not create the output file '" << filename2 << "'" << endl;
         return false;
     }
     fwrite(&map, sizeof(map), 1, output);
@@ -1177,28 +1198,28 @@ void ExtractMapsFromMpq(uint32 build)
     char output_filename[1024];
     char mpq_map_name[1024];
 
-    std::cout << std::endl << " Extracting maps... on build type " << build << std::endl;
+    cout << endl << " Extracting maps... on build type " << build << endl;
 
     uint32 map_count = ReadMapDBC();
 
     ReadAreaTableDBC();
     ReadLiquidTypeTableDBC();
 
-    std::string path = output_path->c_str();
+    string path(output_path->c_str());
     path.append("/maps/");
     CreateDir(path);
 
-    std::cout << std::endl << " Converting map files" << std::endl;
+    cout << endl << " Converting map files" << endl;
     WDT_file wdt;
     for (uint32 z = 0; z < map_count; ++z)
     {
-        std::cout << " Extract " << map_ids[z].name << "(" << z + 1 << "/" << map_count << ")" << std:: endl;
+        cout << " Extract " << map_ids[z].name << "(" << z + 1 << "/" << map_count << ")" <<  endl;
         // Loadup map grid data
         sprintf(mpq_map_name, "World\\Maps\\%s\\%s.wdt", map_ids[z].name, map_ids[z].name);
         
         if (!wdt.loadFile(mpq_map_name, false))
         {
-            std::cout << " Warning: Failed loading map " << map_ids[z].name << ".wdt (This message can be safely ignored)" << std::endl;
+            cout << " Warning: Failed loading map " << map_ids[z].name << ".wdt (This message can be safely ignored)" << endl;
             continue;
         }
 
@@ -1210,14 +1231,14 @@ void ExtractMapsFromMpq(uint32 build)
                 {
                     continue;
                 }
-                std::cout << "this seams to exist" << mpq_map_name << std::endl;
+                cout << "this seams to exist" << mpq_map_name << endl;
                 sprintf(mpq_filename, "World\\Maps\\%s\\%s_%u_%u.adt", map_ids[z].name, map_ids[z].name, x, y);
-                std::cout << "adt to fetch" << mpq_filename << std::endl;
+                cout << "adt to fetch" << mpq_filename << endl;
                 sprintf(output_filename, "%s/maps/%04u%02u%02u.map", output_path->c_str(), map_ids[z].id, y, x);
                 ConvertADT(mpq_filename, output_filename, build);// , y, x);
             }
             // draw progress bar
-            std::cout << " Processing........................" << ((100 * (y + 1)) / WDT_MAP_SIZE) << "%\r"; // ??
+            cout << " Processing........................" << ((100 * (y + 1)) / WDT_MAP_SIZE) << "%\r"; // ??
         }
     }
     delete [] areas;
@@ -1230,10 +1251,10 @@ void ExtractMapsFromMpq(uint32 build)
  */
 void ExtractDBCFiles(int locale, bool basicLocale)
 {
-    std::cout << " ___________________________________    " << std::endl;
-    std::cout << std:: endl << " Extracting client database files (" << Locales[locale] << ")..." << std::endl;
+    cout << " ___________________________________    " << endl;
+    cout <<  endl << " Extracting client database files (" << Locales[locale] << ")..." << endl;
 
-    std::set<std::string> dbcfiles;
+    set<string> dbcfiles;
 
     // get DBC file list
     ArchiveSetBounds archives = GetArchivesBounds();
@@ -1243,33 +1264,30 @@ void ExtractDBCFiles(int locale, bool basicLocale)
         AppendDB2FileListTo(*i, dbcfiles);
     }
 
-    std::string path = output_path->c_str();
+    string path = output_path->c_str();
     path.append("/dbc/");
     CreateDir(path);
     if (iCoreNumber == CLIENT_TBC)
     {
         // extract Build info file
-        string mpq_name = std::string("component.wow-") + Locales[locale] + ".txt";
+        string mpq_name = string("component.wow-") + Locales[locale] + ".txt";
         string filename = path + mpq_name;
-
-        std::cout << "    " << filename << std::endl;
         ExtractFile(mpq_name.c_str(), filename);
     }
-    if (iCoreNumber == CLIENT_TBC || iCoreNumber == CLIENT_WOTLK || iCoreNumber == CLIENT_CATA)
+    if (iCoreNumber == CLIENT_TBC || iCoreNumber == CLIENT_WOTLK || iCoreNumber == CLIENT_CATA || iCoreNumber == CLIENT_MOP)
     {
         if (!basicLocale)
         {
-            path += Locales[locale];
-            path += "/";
+            path.append(Locales[locale]);
+            path.append("/");
             CreateDir(path);
         }
 
         // extract Build info file
         {
-            string mpq_name = std::string("component.wow-") + Locales[locale] + ".txt";
+            string mpq_name = string("component.wow-") + Locales[locale] + ".txt";
             string filename = path + mpq_name;
 
-            std::cout << "    " << filename;
             ExtractFile(mpq_name.c_str(), filename);
         }
     }
@@ -1281,17 +1299,16 @@ void ExtractDBCFiles(int locale, bool basicLocale)
         string filename = path;
         filename += (iter->c_str() + strlen("DBFilesClient\\"));
 
-        std::cout << "    " << filename << std::endl;
         if (ExtractFile(iter->c_str(), filename))
         {
             ++count;
         }
     }
-    std::cout << "Extracted " << count << " DBC/DB2 files" << std::endl << std::endl;
+    cout << " Extracted " << count << " DBC/DB2 files" << endl << endl;
 }
 
-typedef std::pair < std::string /*full_filename*/, char const* /*locale_prefix*/ > UpdatesPair;
-typedef std::map < int /*build*/, UpdatesPair > Updates;
+typedef pair < string /*full_filename*/, char const* /*locale_prefix*/ > UpdatesPair;
+typedef map < int /*build*/, UpdatesPair > Updates;
 
 void AppendPatchMPQFilesToList(char const* subdir, char const* suffix, char const* section, Updates& updates)
 {
@@ -1368,10 +1385,10 @@ void AppendPatchMPQFilesToList(char const* subdir, char const* suffix, char cons
 #endif
 }
 
-void LoadLocaleMPQFiles(int const locale)
+bool LoadLocaleMPQFiles(const int  locale)
 {
     //sprintf(filename, "%s/Data/%s/locale-%s.MPQ", input_path, Locales[locale], Locales[locale]);
-    std::stringstream filename;
+    stringstream filename;
     // first base old version of dbc files
     filename << input_path->c_str() << "/Data/" << Locales[locale] << "/locale-" << Locales[locale] << ".MPQ";
 
@@ -1379,8 +1396,8 @@ void LoadLocaleMPQFiles(int const locale)
 
     if (!OpenArchive(filename.str().c_str(), &localeMpqHandle))
     {
-        std::cout << "Error open archive: " << filename.str() << std::endl;
-        return;
+        cout << "Error open archive: " << filename.str() << endl;
+        return false;
     }
 
     switch (iCoreNumber) {
@@ -1390,18 +1407,20 @@ void LoadLocaleMPQFiles(int const locale)
             {
                 filename.str("");
                 filename << input_path->c_str() << "/Data/" << Locales[locale] << "/patch-" << Locales[locale];
-                // on wolk we add an extension
+                // we add an extension
                 if (i > 1) filename << "-" << i;
 
                 filename << ".MPQ";
 
                 if (ClientFileExists(filename.str().c_str()) && !OpenArchive(filename.str().c_str()))
                 {
-                    std::cout << "Error open patch archive: " << filename.str() << std::endl;
+                    // we can ignore this ,- mostly patch max 2
+                    //cout << "Error open patch archive: " << filename.str() << endl;
                 }
             }
             break;
         case CLIENT_CATA:
+        case CLIENT_MOP:
             // prepare sorted list patches in locale dir and Data root
             Updates updates;
             // now update to newer view, locale
@@ -1410,18 +1429,18 @@ void LoadLocaleMPQFiles(int const locale)
             AppendPatchMPQFilesToList(NULL, NULL, Locales[locale], updates);
 
             // ./Data wow-update-base files
-            for ( int i = 0; Builds[i] && Builds[i] == CONF_TargetBuild; ++i)
+            for ( int i = 0; Builds[i] && Builds[i] <= CONF_TargetBuild; ++i)
             {
                 filename.str("");
                 //sprintf(filename, "%s/Data/wow-update-base-%u.MPQ", input_path, Builds[i]);
                 filename  << input_path->c_str() << "/Data/wow-update-base-" << Builds[i] << ".MPQ";
 
-                std::cout << std::endl << "Patching : " << filename.str() << std::endl;
-
                 //if (!OpenArchive(filename))
                 if (!SFileOpenPatchArchive(localeMpqHandle, filename.str().c_str(), "", 0))
                 {
-                    std::cout << "Error open patch archive: " << filename.str() << std::endl << std::endl;
+                    // we can ignore most time this because, we try to find a patch till CONF_TargetBuild
+                    //cout << "Error open patch archive: " << filename.str() << endl << endl;
+
                 }
             }
 
@@ -1440,59 +1459,57 @@ void LoadLocaleMPQFiles(int const locale)
                     filename << input_path->c_str() << "/Data/" << itr->second.first;
                 }
 
-                std::cout << std::endl << "Patching : "  << filename.str() << std::endl;
+                cout << endl << "Patching : "  << filename.str() << endl;
 
                 //if (!OpenArchive(filename))
                 if (!SFileOpenPatchArchive(localeMpqHandle, filename.str().c_str(), itr->second.second ? itr->second.second : "", 0))
                 {
-                    std::cout << "Error open patch archive: " << filename.str() << std::endl;
+                    cout << "Error open patch archive: " << filename.str() << endl;
                 }
             }
 
             // ./Data/Cache patch-base files
-            for (int i = 0; Builds[i] && Builds[i] == CONF_TargetBuild; ++i)
+            for (int i = 0; Builds[i] && Builds[i] <= CONF_TargetBuild; ++i)
             {
                 filename.str("");
-                //sprintf(filename, "%s/Data/Cache/patch-base-%u.MPQ", input_path, Builds[i]);
+                // test all patches from the base till  CONF_TargetBuild
                 filename << input_path->c_str() << "/Data/Cache/patch-base-" << Builds[i] << ".MPQ";
-
-                std::cout << std::endl << " Patching : " << filename.str() << std::endl;
 
                 //if (!OpenArchive(filename))
                 if (!SFileOpenPatchArchive(localeMpqHandle, filename.str().c_str(), "", 0))
                 {
-                    std::cout << "Error open patch archive: " << filename.str() << std::endl << std::endl;
+                    // we can ignore most time this because, we try to find a patch till CONF_TargetBuild
+                    //cout << "Error open patch archive: " << filename.str() << endl << endl;
                 }
             }
 
             // ./Data/Cache/<locale> patch files
-            for (int i = 0; Builds[i] && Builds[i] == CONF_TargetBuild; ++i)
+            for (int i = 0; Builds[i] && Builds[i] <= CONF_TargetBuild; ++i)
             {
                 filename.str("");
                 //sprintf(filename, "%s/Data/Cache/%s/patch-%s-%u.MPQ", input_path, Locales[locale], Locales[locale], Builds[i]);
                 filename << input_path->c_str() << "/Data/Cache/" << Locales[locale] << "/patch-" << Locales[locale] << "-" <<   Builds[i] << ".MPQ";
 
-                std::cout << std::endl << "Patching : " << filename.str() << std::endl;
-
                 //if (!OpenArchive(filename))
                 if (!SFileOpenPatchArchive(localeMpqHandle, filename.str().c_str(), "", 0))
                 {
-                    std::cout << "Error open patch archive: " << filename.str() << std::endl << std::endl;
+                    // we can ignore most time this because, we try to find a patch till CONF_TargetBuild
+                    //cout << "Error open patch archive: " << filename.str() << endl << endl;
                 }
             }
             break;
     }
+    return true;
 }
 
-/////////////////// this function make no sence ////////////////////////////
 /**
  * @brief
  *
  */
-void LoadCommonMPQFiles(int client)
+void LoadCommonMPQFiles(int client, int firstLocale)
 {
-    std::stringstream filename;
-    std::vector<std::string> kList;
+    stringstream filename;
+    vector<string> kList;
     switch (client)
     {
     case CLIENT_CLASSIC:
@@ -1507,39 +1524,29 @@ void LoadCommonMPQFiles(int client)
     case CLIENT_CATA:
         kList = kCATAMPQList;
         break;
+    case CLIENT_MOP:
+        kList = kMOPMPQList;
+        break;
     }
 
-    struct stat info;
-    string locale;
-    for (int i = 0; i < LOCALES_COUNT; i++)
-    {
-        filename.str("");
-        filename << input_path->c_str() << "/Data/" << Locales[i] << "/locale-" << Locales[i] << ".MPQ";
-        if (ClientFileExists(filename.str().c_str()))
-        {
-            locale = Locales[i];
-            std::cout << " Detected locale: " << locale << std::endl;
-            break;
-        }
-    }
+    string locale = Locales[firstLocale];
 
     // Loading patches in reverse-order.
     for (int i = (kList.size() - 1); i >= 0; i--)
     {
         filename.str("");
         filename << input_path->c_str() << "/Data/" << kList[i];
-        // %s elemets with real language
-        std::string localefile = std::regex_replace(filename.str(), std::regex("\\%s"), locale);
+        // %s elements with real language
+        string localefile = regex_replace(filename.str(), regex("\\%s"), locale);
 
         if (ClientFileExists(localefile.c_str()))
         {
             HANDLE fileHandle;
-            /// we open multiple file handler without close?
+
             if (!OpenArchive(localefile.c_str(), &fileHandle))
             {
-                std::cout << "Error open archive: "<< localefile << std::endl;
+                cout << "Error open archive: "<< localefile << endl;
             }
-            //new MPQFile(fileHandle, filename);
         }
     }
 }
@@ -1560,16 +1567,18 @@ int main(int argc, char** argv)
         exit(1);
     }
 
-    std::cout << "Selected Options:" << std::endl;
-    std::cout << "Input Path: " << input_path->c_str() << std::endl;
-    std::cout << "Output Path: "<<  output_path->c_str() << std::endl;
-    std::cout << "Flat export: " << (CONF_allow_float_to_int ? "true" : "false") << std::endl;
-    std::cout << "Extract dbc: " <<  ((CONF_extract | EXTRACT_DBC) ? "true" : "false") << std::endl;
-    std::cout << "Extract maps: " << ((CONF_extract | EXTRACT_MAP) ? "true" : "false") << std::endl;
+    cout << "Selected Options:" << endl;
+    cout << "Input Path: " << input_path->c_str() << endl;
+    cout << "Output Path: "<<  output_path->c_str() << endl;
+    cout << "Flat export: " << (CONF_allow_float_to_int ? "true" : "false") << endl;
+    cout << "Extract dbc: " <<  (EXTRACT_DBC ? "true" : "false") << endl;
+    cout << "Extract maps: " << (EXTRACT_MAP ? "true" : "false") << endl;
 
     int thisBuild = getBuildNumber(input_path->c_str());
     iCoreNumber = getCoreNumberFromBuild(thisBuild);
     showBanner("DBC Extractor & Map Generator", iCoreNumber);
+
+    cout << "Client build: " << thisBuild << endl;
 
     setMapMagicVersion(iCoreNumber, MAP_VERSION_MAGIC);
 
@@ -1591,21 +1600,20 @@ int main(int argc, char** argv)
         MAP_LIQUID_TYPE_SLIME = 0x08;
     }
 
-    int FirstLocale = -1;
 
     switch (iCoreNumber) {
         case CLIENT_CLASSIC:
             // Open MPQs
-            LoadCommonMPQFiles(iCoreNumber);
+            LoadCommonMPQFiles(iCoreNumber,0);
 
             // Extract dbc
-            if (CONF_extract & EXTRACT_DBC)
+            if (EXTRACT_DBC)
             {
                 ExtractDBCFiles(0, true);
             }
 
             // Extract maps
-            if (CONF_extract & EXTRACT_MAP)
+            if (EXTRACT_MAP)
             {
                 ExtractMapsFromMpq(thisBuild);
             }
@@ -1617,58 +1625,53 @@ int main(int argc, char** argv)
         case CLIENT_WOTLK:
         case CLIENT_CATA:
         case CLIENT_MOP:
+
+            int firstLocale = -1;
+
             for (int i = 0; i < LANG_COUNT; i++)
             {
-                std::stringstream clientfiles;
-                //sprintf(tmp1, "%s/Data/%s/locale-%s.MPQ", input_path, Locales[i], Locales[i]);
-                clientfiles << input_path->c_str() << "/Data/" << Locales[i] << "/locale-" << Locales[i] << ".MPQ";
+                stringstream clientfiles;
 
-                std::cout << clientfiles.str();
+                clientfiles << input_path->c_str() << "/Data/" << Locales[i] << "/locale-" << Locales[i] << ".MPQ";
 
                 if (ClientFileExists(clientfiles.str().c_str()))
                 {
-                    std::cout << " Detected locale: " << Locales[i] << std::endl;
-
-                    //Open MPQs
-                    LoadLocaleMPQFiles(i);
-                    if ((CONF_extract & EXTRACT_DBC) == 0)
-                    {
-                        FirstLocale = i;
-                        std::cout << " Detected client build: " << thisBuild << std::endl;
-                        break;
+                    cout << " Detected locale: " << Locales[i] << endl;
+                    if (firstLocale==-1) {
+                        firstLocale = i;
                     }
-
-                    //Extract DBC files
-                    if (FirstLocale < 0)
-                    {
-                        FirstLocale = i;
-                        std::cout << " Detected client build: " << thisBuild << std::endl;
-                        ExtractDBCFiles(i, true);
-                    }
-                    else
-                    {
+                    if (EXTRACT_DBC) {
+                        if (!LoadLocaleMPQFiles(i)) {
+                            CloseArchives();
+                            return 0;
+                        }
                         ExtractDBCFiles(i, false);
+                        CloseArchives();
                     }
-
-                    //Close MPQs
-                    CloseArchives();
-                    break;
                 }
             }
-
-            if (FirstLocale < 0)
+            if (firstLocale==-1)
             {
-                std::cout << "No locale detected" << std::endl;
-                return 0;
+              return 0;
             }
 
-            if (CONF_extract & EXTRACT_MAP)
-            {
-                std::cout << " Using locale: " << Locales[FirstLocale] << std::endl;
+            if (EXTRACT_DBC) {
+                if (!LoadLocaleMPQFiles(firstLocale)) {
+                    CloseArchives();
+                    return 0;
+                }
+                ExtractDBCFiles(firstLocale, true);
+                CloseArchives();
+            }
 
+            if (EXTRACT_MAP)
+            {
                 // Open MPQs
-                LoadLocaleMPQFiles(FirstLocale);
-                LoadCommonMPQFiles(iCoreNumber);
+                if (!LoadLocaleMPQFiles(firstLocale)) {
+                    CloseArchives();
+                    return 0;
+                }
+                LoadCommonMPQFiles(iCoreNumber, firstLocale);
 
                 // Extract maps
                 ExtractMapsFromMpq(thisBuild);

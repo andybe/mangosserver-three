@@ -29,75 +29,74 @@
 
 #include <cstdio>
 
-DBCFile::DBCFile(const std::string& filename):
-    filename(filename),
-    data(0)
-{
+using namespace std;
 
-}
+DBCFile::DBCFile(HANDLE handle, const std::string& filename):
+    fileHandle(handle),filename(filename)
 
-DBCFile::DBCFile(HANDLE file) : fileHandle(file), data(0)
 {
 
 }
 
 bool DBCFile::open()
 {
-    unsigned char header[4];
-    unsigned int na, nb, es, ss;
+    const static int BYTES = 4;
+    unsigned char header[BYTES];
+    unsigned int rcount, fcount, rsize, ssize;
 
-    if (!SFileReadFile(fileHandle, header, 4, NULL, NULL))              // Magic header
+    if (!SFileReadFile(fileHandle, header, BYTES, NULL, NULL))              // Magic header
     {
         SFileCloseFile(fileHandle);
-        printf("Could not read header in DBCFile %s. err=%u\n", filename.c_str(), GetLastError());
+        cout << "Could not read header in DBCFile " << filename << " err=" <<  GetLastError()<< endl;
         return false;
     }
 
     if (header[0] != 'W' || header[1] != 'D' || header[2] != 'B' || header[3] != 'C')
     {
         SFileCloseFile(fileHandle);
-        printf("The header in DBCFile %s did not match. err=%u\n", filename.c_str(), GetLastError());
+        cout << "The header in DBCFile " << filename << " did not match. err= " << GetLastError() << endl;
         return false;
     }
 
-    if (!SFileReadFile(fileHandle, &na, 4, NULL, NULL))                 // Number of records
+    if (!SFileReadFile(fileHandle, &rcount, BYTES, NULL, NULL))                 // Number of records
     {
         SFileCloseFile(fileHandle);
-        printf("Could not read number of records from DBCFile %s. err=%u\n", filename.c_str(), GetLastError());
+        cout << "Could not read number of records from DBCFile " << filename << ". err=" << GetLastError() << endl;
         return false;
     }
 
-    if (!SFileReadFile(fileHandle, &nb, 4, NULL, NULL))                 // Number of fields
+    if (!SFileReadFile(fileHandle, &fcount, BYTES, NULL, NULL))                 // Number of fields
     {
         SFileCloseFile(fileHandle);
-        printf("Could not read number of fields from DBCFile %s. err=%u\n", filename.c_str(), GetLastError());
+        cout << "Could not read number of fields from DBCFile " << filename << ". err=" << GetLastError() << endl;
         return false;
     }
 
-    if (!SFileReadFile(fileHandle, &es, 4, NULL, NULL))                 // Size of a record
+    if (!SFileReadFile(fileHandle, &rsize, BYTES, NULL, NULL))                 // Size of a record
     {
         SFileCloseFile(fileHandle);
-        printf("Could not read record size from DBCFile %s. err=%u\n", filename.c_str(), GetLastError());
+        cout << "Could not read record size from DBCFile " << filename << ". err=" << GetLastError() << endl;
         return false;
     }
 
-    if (!SFileReadFile(fileHandle, &ss, 4, NULL, NULL))                 // String size
+    if (!SFileReadFile(fileHandle, &ssize, BYTES, NULL, NULL))                 // String size
     {
         SFileCloseFile(fileHandle);
-        printf("Could not read string block size from DBCFile %s. err=%u\n", filename.c_str(), GetLastError());
+        cout << "Could not read string block size from DBCFile " << ". err=" << GetLastError() << endl;
         return false;
     }
 
-    recordSize = es;
-    recordCount = na;
-    fieldCount = nb;
-    stringSize = ss;
-    if (fieldCount * 4 != recordSize)
+    if (fcount * BYTES != rsize)
     {
         SFileCloseFile(fileHandle);
-        printf("Field count and record size in DBCFile %s do not match.\n", filename.c_str());
+        cout << "Field count and record size in DBCFile " << filename << " do not match." << endl;
         return false;
     }
+
+    recordSize = rsize;
+    recordCount = rcount;
+    fieldCount = fcount;
+    stringSize = ssize;
 
     data = new unsigned char[recordSize * recordCount + stringSize];
     stringTable = data + recordSize * recordCount;
@@ -107,11 +106,11 @@ bool DBCFile::open()
     if (!SFileReadFile(fileHandle, data, data_size, NULL, NULL))
     {
         SFileCloseFile(fileHandle);
-        printf("DBCFile %s did not contain expected amount of data for records.\n", filename.c_str());
+        cout << "DBCFile " << filename << " did not contain expected amount of data for records." << endl;
         return false;
     }
-
     SFileCloseFile(fileHandle);
+
     return true;
 }
 DBCFile::~DBCFile()

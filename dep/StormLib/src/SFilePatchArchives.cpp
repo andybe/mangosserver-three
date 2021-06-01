@@ -209,7 +209,6 @@ static int ApplyFilePatch_COPY(
 {
     // Sanity checks
     assert(pPatcher->cbMaxFileData >= pPatcher->cbFileData);
-    pFullPatch = pFullPatch;
 
     // Copy the patch data as-is
     memcpy(pbTarget, pbSource, pPatcher->cbFileData);
@@ -1095,9 +1094,6 @@ bool WINAPI SFileOpenPatchArchive(
     TMPQArchive * ha = (TMPQArchive *)hMpq;
     HANDLE hPatchMpq = NULL;
     int nError = ERROR_SUCCESS;
-
-    // Keep compiler happy
-    dwFlags = dwFlags;
 
     // Verify input parameters
     if(!IsValidMpqHandle(hMpq))

@@ -38,11 +38,10 @@ class DBCFile
     public:
         /**
          * @brief
-         *
-         * @param filename
+         * @param handle
+         * @param file name
          */
-        DBCFile(const std::string& filename);
-        DBCFile(HANDLE file);
+        DBCFile(HANDLE handle, const std::string& filename);
         /**
          * @brief
          *
@@ -56,49 +55,6 @@ class DBCFile
          */
         bool open();
 
-        /**
-         * @brief Database exceptions
-         *
-         */
-        class Exception
-        {
-            public:
-                /**
-                 * @brief
-                 *
-                 * @param message
-                 */
-                Exception(const std::string& message): message(message)
-                { }
-                /**
-                 * @brief
-                 *
-                 */
-                virtual ~Exception()
-                { }
-                /**
-                 * @brief
-                 *
-                 * @return const std::string
-                 */
-                const std::string& getMessage() {return message;}
-            private:
-                std::string message; /**< TODO */
-        };
-        /**
-         * @brief
-         *
-         */
-        class NotFound: public Exception
-        {
-            public:
-                /**
-                 * @brief
-                 *
-                 */
-                NotFound(): Exception("Key was not found")
-                { }
-        };
         class Iterator;
         /**
          * @brief Iteration over database
@@ -123,45 +79,12 @@ class DBCFile
                  * @brief
                  *
                  * @param field
-                 * @return float
-                 */
-                float getFloat(size_t field) const
-                {
-                    assert(field < file.fieldCount);
-                    return *reinterpret_cast<float*>(offset + (field * 4));
-                }
-                /**
-                 * @brief
-                 *
-                 * @param field
                  * @return unsigned int
                  */
                 unsigned int getUInt(size_t field) const
                 {
                     assert(field < file.fieldCount);
                     return *reinterpret_cast<unsigned int*>(offset + (field * 4));
-                }
-                /**
-                 * @brief
-                 *
-                 * @param field
-                 * @return int
-                 */
-                int getInt(size_t field) const
-                {
-                    assert(field < file.fieldCount);
-                    return *reinterpret_cast<int*>(offset + (field * 4));
-                }
-                /**
-                 * @brief
-                 *
-                 * @param ofs
-                 * @return unsigned char
-                 */
-                unsigned char getByte(size_t ofs) const
-                {
-                    assert(ofs < file.recordSize);
-                    return *reinterpret_cast<unsigned char*>(offset + ofs);
                 }
                 /**
                  * @brief
@@ -293,14 +216,14 @@ class DBCFile
          */
         size_t getMaxId();
     private:
-        std::string filename; /**< TODO */
-        HANDLE fileHandle; /**< TODO */
-        size_t recordSize; /**< TODO */
-        size_t recordCount; /**< TODO */
-        size_t fieldCount; /**< TODO */
-        size_t stringSize; /**< TODO */
-        unsigned char* data; /**< TODO */
-        unsigned char* stringTable; /**< TODO */
+        std::string filename;
+        HANDLE fileHandle;
+        size_t recordSize = 0;
+        size_t recordCount  = 0;
+        size_t fieldCount  = 0;
+        size_t stringSize  = 0;
+        unsigned char* data = nullptr;
+        unsigned char* stringTable = nullptr;
 };
 
 #endif
