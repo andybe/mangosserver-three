@@ -73,6 +73,7 @@ string *input_path = new string(".");
 string *output_path = new string(".");
 
 uint32 maxAreaId = 0;               /**< TODO */
+int iBuild = 0;
 int iCoreNumber = 0;
 /**
  * @brief Data types which can be extracted
@@ -1192,13 +1193,13 @@ bool ConvertADT(char* filename, char* filename2, uint32 build)
  * @brief
  *
  */
-void ExtractMapsFromMpq(uint32 build)
+void ExtractMapsFromMpq()
 {
     char mpq_filename[1024];
     char output_filename[1024];
     char mpq_map_name[1024];
 
-    cout << endl << " Extracting maps... on build type " << build << endl;
+    cout << endl << " Extracting maps... on build type " << iBuild << endl;
 
     uint32 map_count = ReadMapDBC();
 
@@ -1235,7 +1236,7 @@ void ExtractMapsFromMpq(uint32 build)
                 sprintf(mpq_filename, "World\\Maps\\%s\\%s_%u_%u.adt", map_ids[z].name, map_ids[z].name, x, y);
                 cout << "adt to fetch" << mpq_filename << endl;
                 sprintf(output_filename, "%s/maps/%04u%02u%02u.map", output_path->c_str(), map_ids[z].id, y, x);
-                ConvertADT(mpq_filename, output_filename, build);// , y, x);
+                ConvertADT(mpq_filename, output_filename, iBuild);// , y, x);
             }
             // draw progress bar
             cout << " Processing........................" << ((100 * (y + 1)) / WDT_MAP_SIZE) << "%\r"; // ??
@@ -1310,6 +1311,7 @@ void ExtractDBCFiles(int locale, bool basicLocale)
 typedef pair < string /*full_filename*/, char const* /*locale_prefix*/ > UpdatesPair;
 typedef map < int /*build*/, UpdatesPair > Updates;
 
+/* TODO - Convert into c++ */
 void AppendPatchMPQFilesToList(char const* subdir, char const* suffix, char const* section, Updates& updates)
 {
     char dirname[512];
@@ -1357,7 +1359,7 @@ void AppendPatchMPQFilesToList(char const* subdir, char const* suffix, char cons
             }
 
             uint32 ubuild = 0;
-            if (sscanf(ffd.cFileName, scanname, &ubuild) == 1 && (!iCoreNumber || ubuild <= iCoreNumber))
+            if (sscanf(ffd.cFileName, scanname, &ubuild) == 1 && (!build || iBuild <= iBuild))
             {
                 updates[ubuild] = UpdatesPair(ffd.cFileName, section);
             }
@@ -1369,12 +1371,12 @@ void AppendPatchMPQFilesToList(char const* subdir, char const* suffix, char cons
 
 #else
 
-    if (DIR* dp = opendir(dirname))
+    if (DIR* dp  = opendir(dirname))
     {
         int ubuild = 0;
         dirent* dirp;
         while ((dirp = readdir(dp)) != NULL)
-            if (sscanf(dirp->d_name, scanname, &ubuild) == 1 && (!iCoreNumber || ubuild <= iCoreNumber))
+            if (sscanf(dirp->d_name, scanname, &ubuild) == 1 && (!iBuild || ubuild <= iBuild))
             {
                 updates[ubuild] = UpdatesPair(dirp->d_name, section);
             }
@@ -1385,123 +1387,92 @@ void AppendPatchMPQFilesToList(char const* subdir, char const* suffix, char cons
 #endif
 }
 
-bool LoadLocaleMPQFiles(const int  locale)
+
+bool LoadLocaleMPQFiles(int const locale)
 {
-    //sprintf(filename, "%s/Data/%s/locale-%s.MPQ", input_path, Locales[locale], Locales[locale]);
     stringstream filename;
-    // first base old version of dbc files
+
     filename << input_path->c_str() << "/Data/" << Locales[locale] << "/locale-" << Locales[locale] << ".MPQ";
 
     HANDLE localeMpqHandle;
 
     if (!OpenArchive(filename.str().c_str(), &localeMpqHandle))
     {
-        cout << "Error open archive: " << filename.str() << endl;
+        cout << "Error open archive: " << filename.str() << endl << endl;
         return false;
     }
 
-    switch (iCoreNumber) {
-        case CLIENT_TBC:
-        case CLIENT_WOTLK:
-            for (int i = 1; i < 5; ++i)
-            {
-                filename.str("");
-                filename << input_path->c_str() << "/Data/" << Locales[locale] << "/patch-" << Locales[locale];
-                // we add an extension
-                if (i > 1) filename << "-" << i;
+    // prepare sorted list patches in locale dir and Data root
+    Updates updates;
+    // now update to newer view, locale
+    AppendPatchMPQFilesToList(Locales[locale], Locales[locale], NULL, updates);
+    // now update to newer view, root
+    AppendPatchMPQFilesToList(NULL, NULL, Locales[locale], updates);
 
-                filename << ".MPQ";
+    // ./Data wow-update-base files
+    for (int i = 0; Builds[i] && Builds[i] <= iBuild; ++i)
+    {
+        filename.str("");
+        filename << input_path->c_str() << "/Data/wow-update-base-" << Builds[0] << ".MPQ";
 
-                if (ClientFileExists(filename.str().c_str()) && !OpenArchive(filename.str().c_str()))
-                {
-                    // we can ignore this ,- mostly patch max 2
-                    //cout << "Error open patch archive: " << filename.str() << endl;
-                }
-            }
-            break;
-        case CLIENT_CATA:
-        case CLIENT_MOP:
-            // prepare sorted list patches in locale dir and Data root
-            Updates updates;
-            // now update to newer view, locale
-            AppendPatchMPQFilesToList(Locales[locale], Locales[locale], NULL, updates);
-            // now update to newer view, root
-            AppendPatchMPQFilesToList(NULL, NULL, Locales[locale], updates);
+        cout << endl << "Patching : " << filename.str() << endl;
 
-            // ./Data wow-update-base files
-            for ( int i = 0; Builds[i] && Builds[i] <= CONF_TargetBuild; ++i)
-            {
-                filename.str("");
-                //sprintf(filename, "%s/Data/wow-update-base-%u.MPQ", input_path, Builds[i]);
-                filename  << input_path->c_str() << "/Data/wow-update-base-" << Builds[i] << ".MPQ";
+        if (!SFileOpenPatchArchive(localeMpqHandle, filename.str().c_str(), "", 0))
+        {
+            cout << "Error open patch archive: " << filename.str() << endl << endl;
+        }
+    }
 
-                //if (!OpenArchive(filename))
-                if (!SFileOpenPatchArchive(localeMpqHandle, filename.str().c_str(), "", 0))
-                {
-                    // we can ignore most time this because, we try to find a patch till CONF_TargetBuild
-                    //cout << "Error open patch archive: " << filename.str() << endl << endl;
+    for (Updates::const_iterator itr = updates.begin(); itr != updates.end(); ++itr)
+    {
+        filename.str("");
+        if (!itr->second.second)
+        {
+            filename <<  input_path->c_str() << "/Data/" << Locales[locale] <<  "/" << itr->second.first.c_str();
+        }
+        else
+        {
+            filename << input_path->c_str() << "/Data/" << itr->second.first.c_str();
+        }
 
-                }
-            }
+        cout << endl << "Patching : " << filename.str() << endl;
 
-            for (Updates::const_iterator itr = updates.begin(); itr != updates.end(); ++itr)
-            {
-                filename.str("");
+        if (!SFileOpenPatchArchive(localeMpqHandle, filename.str().c_str(), itr->second.second ? itr->second.second : "", 0))
+        {
+            cout << "Error open patch archive " << filename.str() << endl << endl;
+        }
+    }
 
-                if (!itr->second.second)
-                {
-                    //sprintf(filename, "%s/Data/%s/%s", input_path, Locales[locale], itr->second.first.c_str());
-                    filename << input_path->c_str() << "/Data/" << Locales[locale] << "/" << itr->second.first;
-                }
-                else
-                {
-                    //sprintf(filename, "%s/Data/%s", input_path, itr->second.first.c_str());
-                    filename << input_path->c_str() << "/Data/" << itr->second.first;
-                }
+    // ./Data/Cache patch-base files
+    for (int i = 0; Builds[i] && Builds[i] <= iBuild; ++i)
+    {
+        filename.str("");
+        filename << input_path->c_str() << "/Data/Cache/patch-base-" <<  Builds[i] << ".MPQ";
 
-                cout << endl << "Patching : "  << filename.str() << endl;
+        cout << endl << "Patching : " << filename.str() << endl;
 
-                //if (!OpenArchive(filename))
-                if (!SFileOpenPatchArchive(localeMpqHandle, filename.str().c_str(), itr->second.second ? itr->second.second : "", 0))
-                {
-                    cout << "Error open patch archive: " << filename.str() << endl;
-                }
-            }
+        //if (!OpenArchive(filename))
+        if (!SFileOpenPatchArchive(localeMpqHandle, filename.str().c_str(), "", 0))
+        {
+            cout << "Error open patch archive: " << filename.str() << endl << endl;
+        }
+    }
 
-            // ./Data/Cache patch-base files
-            for (int i = 0; Builds[i] && Builds[i] <= CONF_TargetBuild; ++i)
-            {
-                filename.str("");
-                // test all patches from the base till  CONF_TargetBuild
-                filename << input_path->c_str() << "/Data/Cache/patch-base-" << Builds[i] << ".MPQ";
+    // ./Data/Cache/<locale> patch files
+    for (int i = 0; Builds[i] && Builds[i] <= iBuild; ++i)
+    {
+        filename.str("");
+        filename << input_path->c_str() << "/Data/Cache/" <<  Locales[locale] << "/patch-" << Locales[locale] << "-" <<  Builds[i] << ".MPQ";
 
-                //if (!OpenArchive(filename))
-                if (!SFileOpenPatchArchive(localeMpqHandle, filename.str().c_str(), "", 0))
-                {
-                    // we can ignore most time this because, we try to find a patch till CONF_TargetBuild
-                    //cout << "Error open patch archive: " << filename.str() << endl << endl;
-                }
-            }
+        cout << endl << "Patching : " << filename.str() << endl;
 
-            // ./Data/Cache/<locale> patch files
-            for (int i = 0; Builds[i] && Builds[i] <= CONF_TargetBuild; ++i)
-            {
-                filename.str("");
-                //sprintf(filename, "%s/Data/Cache/%s/patch-%s-%u.MPQ", input_path, Locales[locale], Locales[locale], Builds[i]);
-                filename << input_path->c_str() << "/Data/Cache/" << Locales[locale] << "/patch-" << Locales[locale] << "-" <<   Builds[i] << ".MPQ";
-
-                //if (!OpenArchive(filename))
-                if (!SFileOpenPatchArchive(localeMpqHandle, filename.str().c_str(), "", 0))
-                {
-                    // we can ignore most time this because, we try to find a patch till CONF_TargetBuild
-                    //cout << "Error open patch archive: " << filename.str() << endl << endl;
-                }
-            }
-            break;
+        if (!SFileOpenPatchArchive(localeMpqHandle, filename.str().c_str(), "", 0))
+        {
+            cout << "Error open patch archive: "<< filename.str() << endl << endl;
+        }
     }
     return true;
 }
-
 /**
  * @brief
  *
@@ -1551,6 +1522,58 @@ void LoadCommonMPQFiles(int client, int firstLocale)
     }
 }
 
+bool isLocaleBuild(int locale)
+{
+    // include build info file also
+    string filename  = string("component.wow-") + Locales[locale] + ".txt";
+    HANDLE fileHandle;
+
+    if (!OpenNewestFile(filename.c_str(), &fileHandle))
+    {
+        cout <<"Fatal error: Not found " << filename << " file!" << endl;
+        return false;
+    }
+
+    unsigned int data_size = SFileGetFileSize(fileHandle, NULL);
+
+    string text;
+    text.resize(data_size);
+
+    if (!SFileReadFile(fileHandle, &text[0], data_size, NULL, NULL))
+    {
+        cout << "Fatal error: Can't read " << filename << " file" << endl;
+        return false;
+    }
+
+    SFileCloseFile(fileHandle);
+
+    size_t pos = text.find("version=\"");
+    size_t pos1 = pos + strlen("version=\"");
+    size_t pos2 = text.find("\"", pos1);
+    if (pos == text.npos || pos2 == text.npos || pos1 >= pos2)
+    {
+        cout << "Fatal error: Invalid  " << filename <<" file format!" << endl;
+        return false;
+    }
+
+    string build_str = text.substr(pos1, pos2 - pos1);
+
+    int build = atoi(build_str.c_str());
+    if (build <= 0)
+    {
+        cout << "Fatal error: Invalid  " << filename << " file format!" << endl;
+        return false;
+    }
+
+    if (build != iBuild)
+    {
+        cout << "Fatal error: tool can correctly extract data only for build " << iBuild << ".(detected: " << build << ")!" << endl;
+        return false;
+    }
+
+    return true;
+}
+
 /**
  * @brief
  *
@@ -1574,11 +1597,11 @@ int main(int argc, char** argv)
     cout << "Extract dbc: " <<  (EXTRACT_DBC ? "true" : "false") << endl;
     cout << "Extract maps: " << (EXTRACT_MAP ? "true" : "false") << endl;
 
-    int thisBuild = getBuildNumber(input_path->c_str());
-    iCoreNumber = getCoreNumberFromBuild(thisBuild);
+    iBuild = getBuildNumber(input_path->c_str());
+    iCoreNumber = getCoreNumberFromBuild(iBuild);
     showBanner("DBC Extractor & Map Generator", iCoreNumber);
 
-    cout << "Client build: " << thisBuild << endl;
+    cout << "Client build: " << iBuild << endl;
 
     setMapMagicVersion(iCoreNumber, MAP_VERSION_MAGIC);
 
@@ -1591,7 +1614,7 @@ int main(int argc, char** argv)
         MAP_LIQUID_TYPE_WATER = 0x08;
     }
 
-    if (iCoreNumber == CLIENT_WOTLK || iCoreNumber == CLIENT_CATA)
+    if (iCoreNumber == CLIENT_WOTLK || iCoreNumber == CLIENT_CATA || iCoreNumber == CLIENT_MOP)
     {
         MAP_LIQUID_TYPE_NO_WATER = 0x00;
         MAP_LIQUID_TYPE_WATER = 0x01;
@@ -1615,7 +1638,7 @@ int main(int argc, char** argv)
             // Extract maps
             if (EXTRACT_MAP)
             {
-                ExtractMapsFromMpq(thisBuild);
+                ExtractMapsFromMpq();
             }
 
             // Close MPQs
@@ -1637,36 +1660,44 @@ int main(int argc, char** argv)
                 if (ClientFileExists(clientfiles.str().c_str()))
                 {
                     cout << " Detected locale: " << Locales[i] << endl;
-                    if (firstLocale==-1) {
-                        firstLocale = i;
-                    }
-                    if (EXTRACT_DBC) {
-                        if (!LoadLocaleMPQFiles(i)) {
+                    //Open MPQs
+                    LoadLocaleMPQFiles(i);
+                    if (!EXTRACT_DBC) {
+                        if (!(isLocaleBuild(i))){
                             CloseArchives();
-                            return 0;
-                        }
-                        ExtractDBCFiles(i, false);
-                        CloseArchives();
+                            exit(1);
+                        };
+                        firstLocale = i;
+                        break;
                     }
+
+                    //Extract DBC files
+                    if (firstLocale < 0)
+                    {
+                            if (!(isLocaleBuild(i))){
+                            CloseArchives();
+                            exit(1);
+                        }
+                        firstLocale = i;
+                        // root level dbc
+                        ExtractDBCFiles(i, true);
+                    }
+                    else
+                    {
+                        ExtractDBCFiles(i, false);
+                    }
+                    CloseArchives();
                 }
             }
             if (firstLocale==-1)
             {
-              return 0;
-            }
-
-            if (EXTRACT_DBC) {
-                if (!LoadLocaleMPQFiles(firstLocale)) {
-                    CloseArchives();
-                    return 0;
-                }
-                ExtractDBCFiles(firstLocale, true);
-                CloseArchives();
+              cout << "No locale found. Exit!" << endl;
+              exit(1);
             }
 
             if (EXTRACT_MAP)
             {
-                // Open MPQs
+                // Open MPQs - this should not happen.
                 if (!LoadLocaleMPQFiles(firstLocale)) {
                     CloseArchives();
                     return 0;
@@ -1674,7 +1705,7 @@ int main(int argc, char** argv)
                 LoadCommonMPQFiles(iCoreNumber, firstLocale);
 
                 // Extract maps
-                ExtractMapsFromMpq(thisBuild);
+                ExtractMapsFromMpq();
 
                 // Close MPQs
                 CloseArchives();
